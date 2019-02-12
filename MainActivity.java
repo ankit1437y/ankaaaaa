@@ -1,118 +1,59 @@
-package com.example.myproject;
-import android.app.Activity;
-import android.content.Intent;
+package com.example.retrofitdemo1;
+
+import android.app.ProgressDialog;
+import android.os.UserHandle;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
-import android.widget.ImageView;
-import android.widget.TextView;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
+import android.widget.Toast;
 
-import com.facebook.AccessToken;
-import com.facebook.CallbackManager;
-import com.facebook.FacebookCallback;
-import com.facebook.FacebookException;
-import com.facebook.GraphRequest;
-import com.facebook.GraphResponse;
-import com.facebook.Profile;
-import com.facebook.login.LoginResult;
-import com.facebook.login.widget.LoginButton;
-import com.squareup.picasso.Picasso;
+import com.example.retrofitdemo1.adapter.CustomAdapter;
+import com.example.retrofitdemo1.model.UserModel;
+import com.example.retrofitdemo1.rest.ApiClient;
+import com.example.retrofitdemo1.rest.ApiInterface;
 
-import org.json.JSONException;
-import org.json.JSONObject;
+import java.util.List;
 
-import java.util.Arrays;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
-
-public class MainActivity extends Activity {
-
-    LoginButton loginButton;
-    CallbackManager callbackManager;
-    ImageView imageView;
-    TextView txtUsername, txtEmail;
-
+public class MainActivity extends AppCompatActivity {
+    private CustomAdapter adapter;
+    private RecyclerView recyclerView;
+    ProgressDialog progressDoalog;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        progressDoalog = new ProgressDialog(MainActivity.this);
+        progressDoalog.setMessage("Loading....");
+        progressDoalog.show();
 
-        loginButton = findViewById(R.id.login_button);
-        imageView = findViewById(R.id.imageView);
-        txtUsername = findViewById(R.id.txtUsername);
-        txtEmail = findViewById(R.id.txtEmail);
-
-        boolean loggedOut = AccessToken.getCurrentAccessToken() == null;
-
-        if (!loggedOut) {
-            Picasso.get().load(Profile.getCurrentProfile().getProfilePictureUri(200, 200)).into(imageView);
-            Log.d("TAG", "Username is: " + Profile.getCurrentProfile().getName());
-
-            //Using Graph API
-            getUserProfile(AccessToken.getCurrentAccessToken());
-        }
-
-        loginButton.setReadPermissions(Arrays.asList("email", "public_profile"));
-        callbackManager = CallbackManager.Factory.create();
-
-        loginButton.registerCallback(callbackManager, new FacebookCallback<LoginResult>() {
+        /*Create handle for the RetrofitInstance interface*/
+        ApiInterface service = ApiClient.getClient().create(ApiInterface.class);
+        Call<List<UserModel>> call = service.getAllPhotos();
+        call.enqueue(new Callback<List<UserModel>>() {
             @Override
-            public void onSuccess(LoginResult loginResult) {
-                // App code
-                //loginResult.getAccessToken();
-                //loginResult.getRecentlyDeniedPermissions()
-                //loginResult.getRecentlyGrantedPermissions()
-                boolean loggedIn = AccessToken.getCurrentAccessToken() == null;
-                Log.d("API123", loggedIn + " ??");
-
+            public void onResponse(Call<List<UserModel>> call, Response<List<UserModel>> response) {
+                progressDoalog.dismiss();
+                generateDataList(response.body());
             }
 
             @Override
-            public void onCancel() {
-                // App code
-            }
-
-            @Override
-            public void onError(FacebookException exception) {
-                // App code
+            public void onFailure(Call<List<UserModel>> call, Throwable t) {
+                progressDoalog.dismiss();
+                Toast.makeText(MainActivity.this, "Something went wrong...Please try later!", Toast.LENGTH_SHORT).show();
             }
         });
-
     }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        callbackManager.onActivityResult(requestCode, resultCode, data);
-        super.onActivityResult(requestCode, resultCode, data);
-    }
-
-    private void getUserProfile(AccessToken currentAccessToken) {
-        GraphRequest request = GraphRequest.newMeRequest(
-                currentAccessToken, new GraphRequest.GraphJSONObjectCallback() {
-                    @Override
-                    public void onCompleted(JSONObject object, GraphResponse response) {
-                        Log.d("TAG", object.toString());
-                        try {
-                            String first_name = object.getString("first_name");
-                            String last_name = object.getString("last_name");
-                            String email = object.getString("email");
-                            String id = object.getString("id");
-                            String image_url = "https://graph.facebook.com/" + id + "/picture?type=normal";
-
-                            txtUsername.setText("First Name: " + first_name + "\nLast Name: " + last_name);
-                            txtEmail.setText(email);
-                            Picasso.get().load(image_url).into(imageView);
-
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-
-                    }
-                });
-
-        Bundle parameters = new Bundle();
-        parameters.putString("fields", "first_name,last_name,email,id");
-        request.setParameters(parameters);
-        request.executeAsync();
-
+    /*Method to generate List of data using RecyclerView with custom adapter*/
+    private void generateDataList(List<UserModel> photoList) {
+        recyclerView = findViewById(R.id.customRecyclerView);
+        adapter = new CustomAdapter(this,photoList);
+        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
+        recyclerView.setLayoutManager(layoutManager);
+        recyclerView.setAdapter(adapter);
     }
 }
