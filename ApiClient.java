@@ -20,3 +20,7 @@ public class ApiClient {
         return retrofit;
     }
 }
+
+  deviceId =findViewById(R.id.deviceId);
+        String id = Settings.Secure.getString(getContentResolver(),Settings.Secure.ANDROID_ID);
+        deviceId.setText(id);
